@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>みるも見守りダッシュボード</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="vendor/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f3f4f7;
+  --bg-glow-1: rgba(42,120,214,.10);
+  --bg-glow-2: rgba(27,175,122,.08);
+  --surface-1: #fcfcfb;
+  --surface-2: #f1f2f4;
+  --border: rgba(15,20,30,.08);
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #8a8984;
+  --grid: rgba(15,20,30,.07);
+  --series-1: #2a78d6; /* 離床 */
+  --series-2: #eb6834; /* トイレ */
+  --series-3: #1baf7a; /* ドア */
+  --seq-0: #eef4fc; --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5; --seq-5: #256abf; --seq-6: #104281;
+  --night: rgba(98,80,214,.07);
+  --warning: #c98500; --critical: #d03b3b; --good: #0a8a3a;
+  --accent-grad: linear-gradient(120deg,#2a78d6 0%,#6250d6 55%,#1baf7a 100%);
+  --shadow: 0 1px 2px rgba(10,20,40,.04), 0 8px 24px rgba(10,20,40,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0b0d12;
+    --bg-glow-1: rgba(57,135,229,.16);
+    --bg-glow-2: rgba(144,133,233,.12);
+    --surface-1: #15171d;
+    --surface-2: #1c1f27;
+    --border: rgba(255,255,255,.07);
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8b8a84;
+    --grid: rgba(255,255,255,.06);
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70;
+    --seq-0: #1a1e27; --seq-1: #104281; --seq-2: #184f95; --seq-3: #256abf; --seq-4: #3987e5; --seq-5: #6da7ec; --seq-6: #b7d3f6;
+    --night: rgba(144,133,233,.08);
+    --warning: #e0a01a; --critical: #e66767; --good: #3fbf6f;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 12px 32px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0d12;
+  --bg-glow-1: rgba(57,135,229,.16);
+  --bg-glow-2: rgba(144,133,233,.12);
+  --surface-1: #15171d;
+  --surface-2: #1c1f27;
+  --border: rgba(255,255,255,.07);
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #8b8a84;
+  --grid: rgba(255,255,255,.06);
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70;
+  --seq-0: #1a1e27; --seq-1: #104281; --seq-2: #184f95; --seq-3: #256abf; --seq-4: #3987e5; --seq-5: #6da7ec; --seq-6: #b7d3f6;
+  --night: rgba(144,133,233,.08);
+  --warning: #e0a01a; --critical: #e66767; --good: #3fbf6f;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 12px 32px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, var(--bg-glow-1), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, var(--bg-glow-2), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: "Inter", "Noto Sans JP", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+.num { font-family: "Inter", sans-serif; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.mono { font-family: "JetBrains Mono", monospace; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 24px 64px; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner { max-width: 1320px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+.logo {
+  width: 36px; height: 36px; border-radius: 11px; background: var(--accent-grad);
+  display: grid; place-items: center; color: #fff; box-shadow: 0 6px 18px rgba(57,135,229,.35);
+}
+.brand h1 { font-size: 15px; margin: 0; font-weight: 800; letter-spacing: .02em; }
+.brand small { display: block; color: var(--text-muted); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+.seg button {
+  border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 12.5px; font-weight: 600;
+  padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: background .15s, color .15s;
+}
+.seg button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text-secondary); display: grid; place-items: center; cursor: pointer;
+}
+.icon-btn:hover { color: var(--text-primary); }
+
+/* ---------- hero ---------- */
+.hero { padding: 36px 0 20px; display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.hero-title { margin-right: auto; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 var(--good); animation: pulse 2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.hero h2 { font-size: clamp(26px, 4vw, 40px); font-weight: 900; margin: 6px 0 4px; letter-spacing: -.01em; line-height: 1.15; }
+.hero h2 .grad { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p { margin: 0; color: var(--text-secondary); }
+
+/* ---------- cards ---------- */
+.grid { display: grid; gap: 16px; }
+.kpis { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 16px; }
+.card {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow);
+  padding: 20px; min-width: 0; position: relative;
+}
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.card h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.card .sub { margin: 2px 0 0; color: var(--text-muted); font-size: 12.5px; }
+
+.kpi { padding: 18px 18px 14px; overflow: hidden; }
+.kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--kpi-accent, var(--accent-grad)); opacity: .9; }
+.kpi .label { font-size: 12px; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.kpi .swatch { width: 8px; height: 8px; border-radius: 3px; background: var(--kpi-accent); }
+.kpi .value { font-size: 32px; font-weight: 800; letter-spacing: -.02em; margin: 6px 0 0; line-height: 1.1; }
+.kpi .value .unit { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-left: 4px; letter-spacing: 0; }
+.kpi .meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 6px; align-items: center; }
+.kpi svg.spark { display: block; width: 100%; height: 34px; margin-top: 10px; overflow: visible; }
+.delta { font-weight: 700; }
+.delta.up { color: var(--text-primary); }
+
+.row-2 { grid-template-columns: 1.6fr 1fr; margin-bottom: 16px; }
+.row-2b { grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
+.row-1 { margin-bottom: 16px; }
+@media (max-width: 960px) { .row-2, .row-2b { grid-template-columns: 1fr; } }
+
+.chart-box { position: relative; height: 280px; }
+.chart-box.sm { height: 170px; }
+.chart-box.md { height: 230px; }
+
+/* legend */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.legend i.line { height: 2px; width: 14px; border-radius: 2px; }
+
+/* alerts */
+.alerts { display: flex; flex-direction: column; gap: 10px; }
+.alert { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.alert .ico { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 14px; }
+.alert.critical .ico { background: var(--critical); }
+.alert.warning .ico { background: var(--warning); }
+.alert.info .ico { background: var(--series-1); }
+.alert.good .ico { background: var(--good); }
+.alert b { display: block; font-size: 13px; }
+.alert span { color: var(--text-secondary); font-size: 12.5px; }
+.alert .tag { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; margin-left: 6px; color: var(--text-muted); }
+
+/* heatmap */
+.heat { display: grid; grid-template-columns: 74px repeat(24, minmax(0, 1fr)); gap: 3px; font-size: 11px; }
+.heat .hl { color: var(--text-muted); text-align: center; }
+.heat .dl { color: var(--text-secondary); white-space: nowrap; display: flex; align-items: center; font-weight: 600; cursor: pointer; }
+.heat .dl:hover, .heat .dl.sel { color: var(--text-primary); }
+.heat .dl.sel::before { content: ""; width: 4px; height: 14px; border-radius: 2px; background: var(--accent-grad); margin-right: 6px; }
+.heat .c { aspect-ratio: 1.5 / 1; border-radius: 4px; background: var(--seq-0); cursor: pointer; transition: transform .1s; min-height: 12px; }
+.heat .c:hover { transform: scale(1.25); outline: 2px solid var(--text-primary); outline-offset: 0; position: relative; z-index: 2; }
+.heat .c.night { box-shadow: inset 0 -2px 0 color-mix(in srgb, #9085e9 70%, transparent); }
+.heat-legend { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); margin-top: 12px; flex-wrap: wrap; }
+.heat-legend .ramp { display: flex; gap: 2px; }
+.heat-legend .ramp i { width: 18px; height: 10px; border-radius: 2px; display: block; }
+.heat-scroll { overflow-x: auto; }
+.heat-scroll .heat { min-width: 620px; }
+
+/* day timeline */
+.day-picker { display: flex; align-items: center; gap: 8px; }
+.day-picker select {
+  font: inherit; font-weight: 600; font-size: 13px; color: var(--text-primary); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px;
+}
+.timeline { width: 100%; height: auto; display: block; }
+.timeline text { fill: var(--text-muted); font-size: 11px; font-family: Inter, sans-serif; }
+.timeline .lane-label { fill: var(--text-secondary); font-weight: 600; font-size: 12px; font-family: "Noto Sans JP", sans-serif; }
+.day-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
+.day-stats div { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--border); }
+.day-stats small { color: var(--text-muted); font-size: 11.5px; display: block; }
+.day-stats b { font-size: 18px; font-weight: 800; }
+.day-multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
+.mini h4 { margin: 0 0 6px; font-size: 12px; color: var(--text-secondary); font-weight: 600; display: flex; justify-content: space-between; }
+.mini h4 span { color: var(--text-muted); font-weight: 500; }
+
+/* table */
+.table-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip {
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); font: inherit; font-size: 12px; font-weight: 600;
+  padding: 5px 11px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.chip[aria-pressed="true"] { color: var(--text-primary); border-color: color-mix(in srgb, var(--text-primary) 35%, transparent); background: var(--surface-1); }
+.chip i { width: 8px; height: 8px; border-radius: 50%; }
+.table-wrap { max-height: 420px; overflow: auto; border-radius: 12px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--surface-2); color: var(--text-muted); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; z-index: 1; }
+tbody tr:hover { background: var(--surface-2); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.pill i { width: 8px; height: 8px; border-radius: 50%; }
+.badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--text-primary); border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent); }
+
+/* tooltip (heatmap / timeline) */
+.tip {
+  position: fixed; pointer-events: none; z-index: 50; background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font-size: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  opacity: 0; transform: translateY(4px); transition: opacity .1s, transform .1s; max-width: 260px;
+}
+.tip.show { opacity: 1; transform: none; }
+.tip b { display: block; margin-bottom: 2px; }
+.tip .r { display: flex; justify-content: space-between; gap: 16px; color: var(--text-secondary); }
+.tip .r b { display: inline; margin: 0; color: var(--text-primary); }
+
+footer { color: var(--text-muted); font-size: 12px; margin-top: 28px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.loading { padding: 80px 0; text-align: center; color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .wrap, .topbar-inner { padding-left: 16px; padding-right: 16px; }
+  .hero { padding-top: 24px; }
+  .card { padding: 16px; border-radius: 16px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi .value { font-size: 26px; }
+  .chart-box { height: 240px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <div><h1>MIRUMO Insight</h1><small>徘徊探知機みるも · 見守りダッシュボード</small></div>
+    </div>
+    <div class="seg" role="group" aria-label="集計期間" id="rangeSeg">
+      <button data-range="3">3日</button>
+      <button data-range="7">7日</button>
+      <button data-range="all" aria-pressed="true">全期間</button>
+    </div>
+    <button class="icon-btn" id="themeBtn" title="テーマ切替" aria-label="テーマ切替">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+  <div class="loading">データを読み込み中…</div>
+</main>
+
+<div class="tip" id="tip"></div>
+
+<script>
+(() => {
+  // ---------- theme ----------
+  const root = document.documentElement;
+  try { const t = localStorage.getItem("mirumo-theme"); if (t) root.dataset.theme = t; } catch (e) {}
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const dark = getComputedStyle(root).colorScheme === "dark";
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("mirumo-theme", root.dataset.theme); } catch (e) {}
+    if (DATA) renderAll();
+  });
+
+  const css = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const fmt = (v, d = 1) => (v == null || isNaN(v) ? "–" : Number(v).toFixed(d));
+  const WD = ["日", "月", "火", "水", "木", "金", "土"];
+  const md = (iso) => { const d = new Date(iso + "T00:00:00"); return `${d.getMonth() + 1}/${d.getDate()}`; };
+  const mdw = (iso) => { const d = new Date(iso + "T00:00:00"); return `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`; };
+
+  const TYPES = {
+    "離床":   { key: "bed",    color: "--series-1", label: "離床" },
+    "トイレ": { key: "toilet", color: "--series-2", label: "トイレ" },
+    "ドア":   { key: "door",   color: "--series-3", label: "ドア開" },
+  };
+  const evGroup = (t) => t === "離床" ? "離床" : t.startsWith("トイレ") ? "トイレ" : "ドア";
+  // 「回数」として数えるイベント（ON/OFF・開/閉のペアは片側のみ）
+  const COUNTED = { "離床": "離床", "トイレON": "トイレ", "ドアオープン": "ドア" };
+
+  let DATA = null, RANGE = "all", SEL_DAY = null, charts = [];
+  let LOG_FILTER = new Set(["離床", "トイレ", "ドア"]);
+
+  // ---------- tooltip ----------
+  const tip = document.getElementById("tip");
+  function showTip(html, x, y) {
+    tip.innerHTML = html; tip.classList.add("show");
+    const r = tip.getBoundingClientRect();
+    let left = x + 14, top = y + 14;
+    if (left + r.width > innerWidth - 8) left = x - r.width - 14;
+    if (top + r.height > innerHeight - 8) top = y - r.height - 14;
+    tip.style.left = left + "px"; tip.style.top = top + "px";
+  }
+  const hideTip = () => tip.classList.remove("show");
+
+  fetch("data/dashboard.json", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((d) => { DATA = d; SEL_DAY = lastFullDay(); renderAll(); })
+    .catch((e) => { $("#app").innerHTML = `<div class="loading">データの読み込みに失敗しました: ${e}</div>`; });
+
+  document.getElementById("rangeSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    RANGE = b.dataset.range;
+    document.querySelectorAll("#rangeSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    renderAll();
+  });
+
+  function lastFullDay() {
+    const full = DATA.days.filter((d) => d.sensorMinutes >= 1380);
+    return (full.length ? full[full.length - 1] : DATA.days[DATA.days.length - 1]).date;
+  }
+  function rangeDays() {
+    const all = DATA.days;
+    return RANGE === "all" ? all : all.slice(-Number(RANGE));
+  }
+  const cnt = (d, g) => g === "離床" ? d.counts["離床"] : g === "トイレ" ? d.counts["トイレON"] : d.counts["ドアオープン"];
+  const mean = (xs) => { const v = xs.filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+
+  // ---------- chart defaults ----------
+  function chartDefaults() {
+    Chart.defaults.font.family = "Inter, 'Noto Sans JP', sans-serif";
+    Chart.defaults.font.size = 11.5;
+    Chart.defaults.color = css("--text-muted");
+    Chart.defaults.borderColor = css("--grid");
+    Chart.defaults.plugins.legend.display = false;
+    Chart.defaults.animation.duration = 500;
+    Object.assign(Chart.defaults.plugins.tooltip, {
+      backgroundColor: css("--surface-1"), titleColor: css("--text-primary"), bodyColor: css("--text-secondary"),
+      borderColor: css("--border"), borderWidth: 1, padding: 10, cornerRadius: 10, boxPadding: 4, usePointStyle: true,
+      titleFont: { weight: "700" },
+    });
+  }
+  const destroyCharts = () => { charts.forEach((c) => c.destroy()); charts = []; };
+  const axisCommon = () => ({
+    grid: { color: css("--grid"), drawTicks: false }, border: { display: false },
+    ticks: { color: css("--text-muted"), padding: 6 },
+  });
+
+  // ---------- render ----------
+  function renderAll() {
+    destroyCharts(); chartDefaults();
+    const days = rangeDays();
+    const p = DATA.period;
+    $("#app").innerHTML = `
+      <section class="hero">
+        <div class="hero-title">
+          <span class="eyebrow"><span class="live-dot"></span>DEVICE #${DATA.deviceId}</span>
+          <h2>見守り<span class="grad">インサイト</span></h2>
+          <p>${mdw(days[0].date)} 〜 ${mdw(days[days.length - 1].date)} の ${days.length} 日間 · 通知ログ ${DATA.events.filter((e) => e.t.slice(0, 10) >= days[0].date).length.toLocaleString()} 件</p>
+        </div>
+      </section>
+      <section class="grid kpis" id="kpis"></section>
+      <section class="grid row-2">
+        <div class="card">
+          <div class="card-head">
+            <div><h3>日別アクティビティ</h3><p class="sub">離床・トイレ使用・ドア開の回数</p></div>
+            <div class="legend">${Object.values(TYPES).map((t) => `<span><i style="background:${css(t.color)}"></i>${t.label}</span>`).join("")}</div>
+          </div>
+          <div class="chart-box"><canvas id="dailyChart" aria-label="日別アクティビティ"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>注目ポイント</h3><p class="sub">期間内で気になる変化を自動検出</p></div></div>
+          <div class="alerts" id="alerts"></div>
+        </div>
+      </section>
+      <section class="grid row-1">
+        <div class="card">
+          <div class="card-head">
+            <div><h3>生活リズム ヒートマップ</h3><p class="sub">日 × 時間帯の反応回数（離床＋トイレ＋ドア開）。日付をクリックで下の詳細に反映</p></div>
+            <div class="seg" role="group" aria-label="ヒートマップ対象" id="heatSeg">
+              <button data-g="all" aria-pressed="true">すべて</button>
+              <button data-g="離床">離床</button><button data-g="トイレ">トイレ</button><button data-g="ドア">ドア</button>
+            </div>
+          </div>
+          <div class="heat-scroll"><div class="heat" id="heat"></div></div>
+          <div class="heat-legend"><span>少</span><span class="ramp" id="heatRamp"></span><span>多</span>
+            <span style="margin-left:14px;display:inline-flex;align-items:center;gap:6px"><i style="width:18px;height:3px;border-radius:2px;background:#9085e9;display:inline-block"></i>夜間帯 (${DATA.nightWindow[0]}:00〜${DATA.nightWindow[1]}:00)</span></div>
+        </div>
+      </section>
+      <section class="grid row-1">
+        <div class="card">
+          <div class="card-head">
+            <div><h3>1日のタイムライン</h3><p class="sub">イベント発生時刻と室内環境の推移</p></div>
+            <div class="day-picker">
+              <button class="icon-btn" id="dayPrev" aria-label="前日">‹</button>
+              <select id="daySel">${DATA.days.map((d) => `<option value="${d.date}">${mdw(d.date)}</option>`).join("")}</select>
+              <button class="icon-btn" id="dayNext" aria-label="翌日">›</button>
+            </div>
+          </div>
+          <div id="timeline"></div>
+          <div class="day-stats" id="dayStats"></div>
+          <div class="day-multiples">
+            <div class="mini"><h4>室温 <span>℃</span></h4><div class="chart-box sm"><canvas id="dTemp"></canvas></div></div>
+            <div class="mini"><h4>照度 <span>lx</span></h4><div class="chart-box sm"><canvas id="dLux"></canvas></div></div>
+            <div class="mini"><h4>運動指数 <span>10分平均</span></h4><div class="chart-box sm"><canvas id="dMotion"></canvas></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="grid row-2b">
+        <div class="card">
+          <div class="card-head"><div><h3>夜間の離床</h3><p class="sub">${DATA.nightWindow[0]}:00〜翌${DATA.nightWindow[1]}:00 の離床回数（夜の開始日で集計）</p></div></div>
+          <div class="chart-box md"><canvas id="nightChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>トイレ滞在時間</h3><p class="sub">1回ごとの滞在（分）× 時刻。30分以上は要確認</p></div></div>
+          <div class="chart-box md"><canvas id="toiletChart"></canvas></div>
+        </div>
+      </section>
+      <section class="grid row-2b">
+        <div class="card">
+          <div class="card-head"><div><h3>室温の推移</h3><p class="sub">日別の最低〜最高（帯）と平均（線）</p></div>
+            <div class="legend"><span><i class="line" style="background:${css("--series-2")}"></i>平均</span><span><i style="background:${css("--series-2")};opacity:.25"></i>最低〜最高</span></div></div>
+          <div class="chart-box md"><canvas id="tempChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>湿度の推移</h3><p class="sub">10分平均</p></div></div>
+          <div class="chart-box md"><canvas id="humChart"></canvas></div>
+        </div>
+      </section>
+      <section class="grid row-1">
+        <div class="card">
+          <div class="card-head"><div><h3>睡眠・起床レポート</h3><p class="sub">みるもの睡眠データ（夜間起床は機器の出力値）</p></div></div>
+          <div class="chart-box md"><canvas id="sleepChart"></canvas></div>
+        </div>
+      </section>
+      <section class="grid row-1">
+        <div class="card">
+          <div class="card-head">
+            <div><h3>通知ログ</h3><p class="sub" id="logCount"></p></div>
+            <div class="table-tools" id="logTools">
+              ${Object.entries(TYPES).map(([g, t]) => `<button class="chip" data-g="${g}" aria-pressed="${LOG_FILTER.has(g)}"><i style="background:${css(t.color)}"></i>${t.label.replace("ドア開", "ドア")}</button>`).join("")}
+            </div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>日時</th><th>種別</th><th>内容</th><th>備考</th></tr></thead><tbody id="logBody"></tbody></table></div>
+        </div>
+      </section>
+      <footer><span>データ更新: ${DATA.generatedAt.replace("T", " ")}</span><span>収録期間 ${p.from} 〜 ${p.to}</span></footer>
+    `;
+    renderKpis(days);
+    renderDaily(days);
+    renderAlerts(days);
+    renderHeat(days, "all");
+    renderDay();
+    renderNight(days);
+    renderToilet(days);
+    renderTemp(days);
+    renderHum(days);
+    renderSleep(days);
+    renderLog(days);
+    bindInteractions(days);
+  }
+
+  // ---------- KPI ----------
+  function spark(values, color) {
+    const v = values.map((x) => x ?? 0), w = 200, h = 34, max = Math.max(...v, 1), min = Math.min(...v, 0);
+    const pts = v.map((y, i) => [v.length === 1 ? w / 2 : (i / (v.length - 1)) * w, h - 3 - ((y - min) / (max - min || 1)) * (h - 6)]);
+    const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+    const last = pts[pts.length - 1];
+    const id = "g" + Math.random().toString(36).slice(2, 8);
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${d} L${w} ${h} L0 ${h} Z" fill="url(#${id})"/>
+      <path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${last[0]}" cy="${last[1]}" r="3" fill="${color}" stroke="${css("--surface-1")}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  }
+  function renderKpis(days) {
+    const full = days.filter((d) => d.sensorMinutes >= 1380);
+    const base = full.length ? full : days;
+    const toiletAll = DATA.toiletVisits.filter((v) => days.some((d) => d.date === v.start.slice(0, 10)));
+    const items = [
+      { label: "離床", color: css("--series-1"), value: mean(base.map((d) => d.counts["離床"])), unit: "回/日", series: days.map((d) => d.counts["離床"]), meta: `合計 ${days.reduce((a, d) => a + d.counts["離床"], 0)} 回` },
+      { label: "夜間の離床", color: "#9085e9", value: mean(base.map((d) => d.nightBedExit)), unit: "回/夜", series: days.map((d) => d.nightBedExit), meta: `最多 ${Math.max(...days.map((d) => d.nightBedExit))} 回` },
+      { label: "トイレ使用", color: css("--series-2"), value: mean(base.map((d) => d.counts["トイレON"])), unit: "回/日", series: days.map((d) => d.counts["トイレON"]), meta: `合計 ${days.reduce((a, d) => a + d.counts["トイレON"], 0)} 回` },
+      { label: "トイレ平均滞在", color: css("--series-2"), value: mean(toiletAll.map((v) => v.min)), unit: "分", series: days.map((d) => d.toiletAvgMin), meta: `最長 ${fmt(Math.max(...toiletAll.map((v) => v.min), 0))} 分` },
+      { label: "ドア開", color: css("--series-3"), value: mean(base.map((d) => d.counts["ドアオープン"])), unit: "回/日", series: days.map((d) => d.counts["ドアオープン"]), meta: `合計 ${days.reduce((a, d) => a + d.counts["ドアオープン"], 0)} 回` },
+      { label: "平均室温", color: css("--series-2"), value: mean(days.map((d) => d.tempAvg)), unit: "℃", series: days.map((d) => d.tempAvg), meta: `${fmt(Math.min(...days.map((d) => d.tempMin ?? 99)))}〜${fmt(Math.max(...days.map((d) => d.tempMax ?? -99)))} ℃` },
+    ];
+    $("#kpis").innerHTML = items.map((k) => `
+      <div class="card kpi" style="--kpi-accent:${k.color}">
+        <div class="label"><span class="swatch"></span>${k.label}</div>
+        <div class="value num">${fmt(k.value)}<span class="unit">${k.unit}</span></div>
+        <div class="meta">${k.meta}</div>
+        ${spark(k.series, k.color)}
+      </div>`).join("");
+  }
+
+  // ---------- daily bars ----------
+  function renderDaily(days) {
+    const ds = Object.entries(TYPES).map(([g, t]) => ({
+      label: t.label, data: days.map((d) => cnt(d, g)), backgroundColor: css(t.color),
+      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18, categoryPercentage: .72, barPercentage: .9,
+    }));
+    charts.push(new Chart($("#dailyChart"), {
+      type: "bar",
+      data: { labels: days.map((d) => mdw(d.date)), datasets: ds },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        scales: { x: { ...axisCommon(), grid: { display: false } }, y: { ...axisCommon(), beginAtZero: true, title: { display: true, text: "回", color: css("--text-muted") } } },
+        plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y} 回` } } },
+        onClick: (e, els) => { if (els.length) { SEL_DAY = days[els[0].index].date; renderDay(); document.getElementById("timeline").scrollIntoView({ behavior: "smooth", block: "center" }); } },
+      },
+    }));
+  }
+
+  // ---------- alerts ----------
+  function renderAlerts(days) {
+    const out = [];
+    const long = DATA.toiletVisits.filter((v) => v.min >= 30 && days.some((d) => d.date === v.start.slice(0, 10)));
+    if (long.length) {
+      const top = [...long].sort((a, b) => b.min - a.min)[0];
+      out.push({ lv: "warning", ico: "!", title: `トイレ長時間滞在 ${long.length} 件`, body: `最長 ${fmt(top.min)} 分（${mdw(top.start.slice(0, 10))} ${top.start.slice(11, 16)}〜）` });
+    }
+    const nights = days.map((d) => d.nightBedExit);
+    const nAvg = mean(nights);
+    const peakN = days.reduce((a, d) => (d.nightBedExit > a.nightBedExit ? d : a), days[0]);
+    if (peakN && peakN.nightBedExit >= Math.max(3, nAvg * 1.5)) {
+      out.push({ lv: "warning", ico: "☾", title: `夜間の離床が多い夜: ${mdw(peakN.date)}`, body: `${peakN.nightBedExit} 回（期間平均 ${fmt(nAvg)} 回/夜）` });
+    }
+    const full = days.filter((d) => d.sensorMinutes >= 1380);
+    if (full.length >= 4) {
+      const half = Math.floor(full.length / 2);
+      const a = mean(full.slice(0, half).map((d) => d.counts["トイレON"])), b = mean(full.slice(half).map((d) => d.counts["トイレON"]));
+      const diff = ((b - a) / a) * 100;
+      if (Math.abs(diff) >= 15) out.push({ lv: "info", ico: diff > 0 ? "↑" : "↓", title: `トイレ回数が${diff > 0 ? "増加" : "減少"}傾向`, body: `前半 ${fmt(a)} → 後半 ${fmt(b)} 回/日（${diff > 0 ? "+" : ""}${fmt(diff, 0)}%）` });
+      const da = mean(full.slice(0, half).map((d) => d.counts["ドアオープン"])), db = mean(full.slice(half).map((d) => d.counts["ドアオープン"]));
+      const dd = ((db - da) / (da || 1)) * 100;
+      if (Math.abs(dd) >= 20) out.push({ lv: "info", ico: dd > 0 ? "↑" : "↓", title: `ドア開閉が${dd > 0 ? "増加" : "減少"}傾向`, body: `前半 ${fmt(da)} → 後半 ${fmt(db)} 回/日` });
+    }
+    const hot = days.filter((d) => d.wbgtMax != null && d.wbgtMax >= 25);
+    if (hot.length) out.push({ lv: "critical", ico: "▲", title: `暑さ指数 25 以上の日 ${hot.length} 日`, body: `最大 ${Math.max(...hot.map((d) => d.wbgtMax))}（熱中症に注意）` });
+    const cold = days.filter((d) => d.tempMin != null && d.tempMin < 16);
+    if (cold.length) out.push({ lv: "warning", ico: "▼", title: `室温 16℃ 未満の日 ${cold.length} 日`, body: `最低 ${fmt(Math.min(...cold.map((d) => d.tempMin)))} ℃` });
+    const away = DATA.sensor.filter((s) => s.away > 0 && days.some((d) => d.date === s.t.slice(0, 10)));
+    out.push(away.length
+      ? { lv: "warning", ico: "⇢", title: `外出（不在）判定あり`, body: `${away.length * 10} 分程度の不在を検知` }
+      : { lv: "good", ico: "✓", title: "外出（不在）判定なし", body: "期間中は在宅判定が継続しています" });
+    if (!out.some((o) => o.lv !== "good")) out.push({ lv: "good", ico: "✓", title: "大きな変化はありません", body: "期間内は安定した生活リズムです" });
+    const tag = { critical: "要注意", warning: "確認", info: "傾向", good: "良好" };
+    $("#alerts").innerHTML = out.map((o) => `<div class="alert ${o.lv}"><div class="ico" aria-hidden="true">${o.ico}</div><div><b>${o.title}<span class="tag">${tag[o.lv]}</span></b><span>${o.body}</span></div></div>`).join("");
+  }
+
+  // ---------- heatmap ----------
+  function renderHeat(days, group) {
+    const [ns, ne] = DATA.nightWindow;
+    const steps = ["--seq-0", "--seq-1", "--seq-2", "--seq-3", "--seq-4", "--seq-5", "--seq-6"].map(css);
+    $("#heatRamp").innerHTML = steps.map((c) => `<i style="background:${c}"></i>`).join("");
+    const val = (d, h) => Object.entries(COUNTED).reduce((a, [t, g]) => a + ((group === "all" || group === g) ? d.hourly[t][h] : 0), 0);
+    const max = Math.max(1, ...days.flatMap((d) => [...Array(24)].map((_, h) => val(d, h))));
+    let html = `<div></div>` + [...Array(24)].map((_, h) => `<div class="hl">${h % 3 === 0 ? h : ""}</div>`).join("");
+    days.forEach((d) => {
+      html += `<div class="dl ${d.date === SEL_DAY ? "sel" : ""}" data-day="${d.date}">${mdw(d.date)}</div>`;
+      for (let h = 0; h < 24; h++) {
+        const v = val(d, h);
+        const step = v === 0 ? 0 : Math.min(6, 1 + Math.floor((v / max) * 5.999));
+        const night = h >= ns || h < ne;
+        html += `<div class="c ${night ? "night" : ""}" style="background:${steps[step]}" data-day="${d.date}" data-h="${h}" data-v="${v}"></div>`;
+      }
+    });
+    $("#heat").innerHTML = html;
+    $("#heat").onmousemove = (e) => {
+      const c = e.target.closest(".c"); if (!c) return hideTip();
+      const d = DATA.days.find((x) => x.date === c.dataset.day), h = +c.dataset.h;
+      const rows = Object.entries(COUNTED).map(([t, g]) => `<div class="r"><span>${TYPES[g].label}</span><b>${d.hourly[t][h]}</b></div>`).join("");
+      showTip(`<b>${mdw(d.date)} ${h}:00〜${h + 1}:00</b>${rows}`, e.clientX, e.clientY);
+    };
+    $("#heat").onmouseleave = hideTip;
+    $("#heat").onclick = (e) => {
+      const el = e.target.closest("[data-day]"); if (!el) return;
+      SEL_DAY = el.dataset.day; renderDay();
+      document.querySelectorAll("#heat .dl").forEach((x) => x.classList.toggle("sel", x.dataset.day === SEL_DAY));
+    };
+  }
+
+  // ---------- day timeline ----------
+  let dayCharts = [];
+  function renderDay() {
+    dayCharts.forEach((c) => c.destroy()); dayCharts = [];
+    $("#daySel").value = SEL_DAY;
+    const dayEvents = DATA.events.filter((e) => e.t.startsWith(SEL_DAY));
+    const W = 1000, laneH = 34, top = 8, left = 70, right = 12, H = top + laneH * 3 + 26;
+    const x = (t) => { const [hh, mm, ss] = t.slice(11).split(":").map(Number); return left + ((hh * 3600 + mm * 60 + ss) / 86400) * (W - left - right); };
+    const [ns, ne] = DATA.nightWindow;
+    const hx = (h) => left + (h / 24) * (W - left - right);
+    let svg = `<svg class="timeline" viewBox="0 0 ${W} ${H}" role="img" aria-label="${mdw(SEL_DAY)}のイベントタイムライン">`;
+    svg += `<rect x="${hx(0)}" y="${top}" width="${hx(ne) - hx(0)}" height="${laneH * 3}" fill="${css("--night")}"/>`;
+    svg += `<rect x="${hx(ns)}" y="${top}" width="${hx(24) - hx(ns)}" height="${laneH * 3}" fill="${css("--night")}"/>`;
+    for (let h = 0; h <= 24; h += 3) {
+      svg += `<line x1="${hx(h)}" x2="${hx(h)}" y1="${top}" y2="${top + laneH * 3}" stroke="${css("--grid")}"/>`;
+      svg += `<text x="${hx(h)}" y="${H - 6}" text-anchor="middle">${h}:00</text>`;
+    }
+    const lanes = ["離床", "トイレ", "ドア"];
+    lanes.forEach((g, i) => {
+      const cy = top + laneH * i + laneH / 2, col = css(TYPES[g].color);
+      svg += `<line x1="${left}" x2="${W - right}" y1="${cy}" y2="${cy}" stroke="${css("--grid")}" stroke-dasharray="2 4"/>`;
+      svg += `<text class="lane-label" x="0" y="${cy + 4}">${TYPES[g].label.replace("ドア開", "ドア")}</text>`;
+      if (g === "トイレ") {
+        DATA.toiletVisits.filter((v) => v.start.startsWith(SEL_DAY)).forEach((v) => {
+          const x1 = x(v.start), x2 = Math.min(W - right, x1 + (v.min * 60 / 86400) * (W - left - right));
+          svg += `<rect class="ev" x="${x1}" y="${cy - 8}" width="${Math.max(4, x2 - x1)}" height="16" rx="4" fill="${col}" stroke="${css("--surface-1")}" stroke-width="1.5" data-tip="トイレ ${v.start.slice(11, 16)}〜 ${fmt(v.min)}分"/>`;
+        });
+      } else if (g === "ドア") {
+        dayEvents.filter((e) => e.type === "ドアオープン").forEach((e) => {
+          svg += `<circle class="ev" cx="${x(e.t)}" cy="${cy}" r="6" fill="${col}" stroke="${css("--surface-1")}" stroke-width="2" data-tip="ドアオープン ${e.t.slice(11, 16)}"/>`;
+        });
+      } else {
+        dayEvents.filter((e) => e.type === "離床").forEach((e) => {
+          svg += `<circle class="ev" cx="${x(e.t)}" cy="${cy}" r="6" fill="${col}" stroke="${css("--surface-1")}" stroke-width="2" data-tip="離床 ${e.t.slice(11, 16)}"/>`;
+        });
+      }
+    });
+    svg += `</svg>`;
+    const tl = $("#timeline");
+    tl.innerHTML = svg;
+    tl.onmousemove = (e) => { const t = e.target.closest(".ev"); t ? showTip(`<b>${t.dataset.tip}</b>`, e.clientX, e.clientY) : hideTip(); };
+    tl.onmouseleave = hideTip;
+
+    const d = DATA.days.find((x) => x.date === SEL_DAY);
+    const sl = DATA.sleep.find((s) => s.date === SEL_DAY);
+    $("#dayStats").innerHTML = [
+      ["離床", d.counts["離床"] + " 回"], ["夜間の離床", d.nightBedExit + " 回"], ["トイレ", d.counts["トイレON"] + " 回"],
+      ["平均滞在", fmt(d.toiletAvgMin) + " 分"], ["ドア開", d.counts["ドアオープン"] + " 回"],
+      ["室温", `${fmt(d.tempMin)}〜${fmt(d.tempMax)}℃`], ["起床", sl?.wake ?? "–"],
+    ].map(([k, v]) => `<div><small>${k}</small><b class="num">${v}</b></div>`).join("");
+
+    const ss = DATA.sensor.filter((s) => s.t.startsWith(SEL_DAY));
+    const labels = ss.map((s) => s.t.slice(11));
+    const mini = (id, key, color, fill) => new Chart($(id), {
+      type: "line",
+      data: { labels, datasets: [{ data: ss.map((s) => s[key]), borderColor: color, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: .3, fill: fill ? { target: "origin" } : false, backgroundColor: color + "22" }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        scales: { x: { ...axisCommon(), grid: { display: false }, ticks: { ...axisCommon().ticks, autoSkip: false, maxRotation: 0, callback: (v, i) => /^(00|06|12|18):00$/.test(labels[i]) ? labels[i].replace(/^0/, "") : null } }, y: { ...axisCommon(), ticks: { ...axisCommon().ticks, maxTicksLimit: 4 } } },
+        plugins: { tooltip: { displayColors: false } },
+      },
+    });
+    dayCharts.push(mini("#dTemp", "temp", css("--series-2"), false));
+    dayCharts.push(mini("#dLux", "lux", css("--warning"), true));
+    dayCharts.push(mini("#dMotion", "motion", css("--series-1"), true));
+  }
+
+  // ---------- night bed exits ----------
+  function renderNight(days) {
+    const col = "#9085e9";
+    charts.push(new Chart($("#nightChart"), {
+      type: "bar",
+      data: { labels: days.map((d) => mdw(d.date)), datasets: [{ label: "夜間の離床", data: days.map((d) => d.nightBedExit), backgroundColor: col, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { x: { ...axisCommon(), grid: { display: false } }, y: { ...axisCommon(), beginAtZero: true, ticks: { ...axisCommon().ticks, precision: 0 } } },
+        plugins: { tooltip: { callbacks: { title: (c) => `${c[0].label} の夜`, label: (c) => ` ${c.parsed.y} 回` } } },
+      },
+    }));
+  }
+
+  // ---------- toilet scatter ----------
+  function renderToilet(days) {
+    const set = new Set(days.map((d) => d.date));
+    const v = DATA.toiletVisits.filter((t) => set.has(t.start.slice(0, 10)));
+    const hourOf = (s) => { const [h, m] = s.slice(11, 16).split(":").map(Number); return h + m / 60; };
+    const col = css("--series-2"), warn = css("--critical");
+    charts.push(new Chart($("#toiletChart"), {
+      type: "scatter",
+      data: { datasets: [{ data: v.map((t) => ({ x: hourOf(t.start), y: t.min, s: t.start })), pointRadius: 4.5, pointHoverRadius: 7,
+        pointBackgroundColor: v.map((t) => t.min >= 30 ? warn : col + "b3"), pointBorderColor: css("--surface-1"), pointBorderWidth: 1 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { ...axisCommon(), min: 0, max: 24, ticks: { ...axisCommon().ticks, stepSize: 3, callback: (x) => x + ":00" } },
+          y: { ...axisCommon(), type: "logarithmic", min: 0.5, title: { display: true, text: "分（対数）", color: css("--text-muted") }, ticks: { ...axisCommon().ticks, callback: (x) => [1, 2, 5, 10, 20, 50, 100].includes(x) ? x : "" } },
+        },
+        plugins: { tooltip: { displayColors: false, callbacks: { title: (c) => `${mdw(c[0].raw.s.slice(0, 10))} ${c[0].raw.s.slice(11, 16)}`, label: (c) => `滞在 ${fmt(c.raw.y)} 分` } } },
+      },
+    }));
+  }
+
+  // ---------- temperature band ----------
+  function renderTemp(days) {
+    const col = css("--series-2");
+    charts.push(new Chart($("#tempChart"), {
+      type: "line",
+      data: { labels: days.map((d) => mdw(d.date)), datasets: [
+        { label: "最高", data: days.map((d) => d.tempMax), borderWidth: 0, pointRadius: 0, fill: "+1", backgroundColor: col + "33" },
+        { label: "最低", data: days.map((d) => d.tempMin), borderWidth: 0, pointRadius: 0, fill: false },
+        { label: "平均", data: days.map((d) => d.tempAvg), borderColor: col, borderWidth: 2, pointRadius: 3, pointBackgroundColor: col, pointBorderColor: css("--surface-1"), pointBorderWidth: 2, tension: .3 },
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        scales: { x: { ...axisCommon(), grid: { display: false } }, y: { ...axisCommon(), title: { display: true, text: "℃", color: css("--text-muted") } } },
+        plugins: { tooltip: { itemSort: (a, b) => a.datasetIndex - b.datasetIndex, callbacks: { label: (c) => ` ${c.dataset.label}: ${fmt(c.parsed.y)} ℃` } } },
+      },
+    }));
+  }
+
+  // ---------- humidity ----------
+  function renderHum(days) {
+    const set = new Set(days.map((d) => d.date));
+    const ss = DATA.sensor.filter((s) => set.has(s.t.slice(0, 10)));
+    const col = css("--series-3");
+    charts.push(new Chart($("#humChart"), {
+      type: "line",
+      data: { labels: ss.map((s) => s.t), datasets: [{ label: "湿度", data: ss.map((s) => s.hum), borderColor: col, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: .25, fill: "origin", backgroundColor: col + "1f" }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        scales: {
+          x: { ...axisCommon(), grid: { display: false }, ticks: { ...axisCommon().ticks, autoSkip: false, maxRotation: 0, callback: function (v, i) { const t = ss[i]?.t; return t && t.endsWith("T00:00") ? md(t.slice(0, 10)) : null; } } },
+          y: { ...axisCommon(), title: { display: true, text: "%", color: css("--text-muted") } },
+        },
+        plugins: { tooltip: { displayColors: false, callbacks: { title: (c) => `${mdw(c[0].label.slice(0, 10))} ${c[0].label.slice(11)}`, label: (c) => `湿度 ${fmt(c.parsed.y)} %` } } },
+      },
+    }));
+  }
+
+  // ---------- sleep ----------
+  function renderSleep(days) {
+    const set = new Set(days.map((d) => d.date));
+    const s = DATA.sleep.filter((x) => set.has(x.date));
+    const col = css("--series-1");
+    charts.push(new Chart($("#sleepChart"), {
+      type: "bar",
+      data: { labels: s.map((x) => mdw(x.date)), datasets: [{ label: "夜間起床", data: s.map((x) => x.nightWake), backgroundColor: col, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { x: { ...axisCommon(), grid: { display: false } }, y: { ...axisCommon(), beginAtZero: true, title: { display: true, text: "夜間起床", color: css("--text-muted") } } },
+        plugins: { tooltip: { callbacks: { label: (c) => { const r = s[c.dataIndex]; return [` 夜間起床: ${c.parsed.y}`, ` 就寝: ${r.bed ?? "–"}  起床: ${r.wake ?? "–"}`, ` 睡眠時間: ${r.duration ?? "–"}`]; } } } },
+      },
+    }));
+  }
+
+  // ---------- log ----------
+  function renderLog(days) {
+    const set = new Set(days.map((d) => d.date));
+    const longStarts = new Set(DATA.toiletVisits.filter((v) => v.min >= 30).map((v) => v.start));
+    const rows = DATA.events.filter((e) => set.has(e.t.slice(0, 10)) && LOG_FILTER.has(evGroup(e.type))).reverse();
+    $("#logCount").textContent = `${rows.length.toLocaleString()} 件（新しい順）`;
+    $("#logBody").innerHTML = rows.slice(0, 1500).map((e) => {
+      const g = evGroup(e.type);
+      const badge = longStarts.has(e.t) ? `<span class="badge">長時間滞在</span>` : "";
+      return `<tr><td class="num">${mdw(e.t.slice(0, 10))} ${e.t.slice(11)}</td><td><span class="pill"><i style="background:${css(TYPES[g].color)}"></i>${e.type}</span></td><td>${e.text}</td><td>${badge}</td></tr>`;
+    }).join("");
+  }
+
+  function bindInteractions(days) {
+    $("#heatSeg").onclick = (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      document.querySelectorAll("#heatSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+      renderHeat(days, b.dataset.g);
+    };
+    $("#daySel").onchange = (e) => { SEL_DAY = e.target.value; renderDay(); syncHeatSel(); };
+    const step = (n) => { const i = DATA.days.findIndex((d) => d.date === SEL_DAY) + n; if (i >= 0 && i < DATA.days.length) { SEL_DAY = DATA.days[i].date; renderDay(); syncHeatSel(); } };
+    $("#dayPrev").onclick = () => step(-1);
+    $("#dayNext").onclick = () => step(1);
+    $("#logTools").onclick = (e) => {
+      const b = e.target.closest(".chip"); if (!b) return;
+      const g = b.dataset.g;
+      LOG_FILTER.has(g) ? LOG_FILTER.delete(g) : LOG_FILTER.add(g);
+      b.setAttribute("aria-pressed", LOG_FILTER.has(g));
+      renderLog(days);
+    };
+  }
+  const syncHeatSel = () => document.querySelectorAll("#heat .dl").forEach((x) => x.classList.toggle("sel", x.dataset.day === SEL_DAY));
+})();
+</script>
+</body>
+</html>
