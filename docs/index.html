@@ -1,29 +1,29 @@
 <!doctype html>
-<html lang="ja" data-theme="dark">
+<html lang="ja" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#06080c">
+<meta name="theme-color" content="#ffffff">
 <title>みるも見守りダッシュボード</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="vendor/chart.umd.min.js"></script>
-<script>try { const t = localStorage.getItem("mirumo-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script>try { const t = localStorage.getItem("mirumo-theme-v2"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <style>
 /* ===================== tokens ===================== */
 :root {
   color-scheme: light;
-  --bg: #eef0f5;
-  --bg-grid: rgba(20,30,60,.045);
-  --glow-1: rgba(42,120,214,.16);
-  --glow-2: rgba(98,80,214,.12);
-  --glow-3: rgba(27,175,122,.10);
+  --bg: #ffffff;
+  --bg-grid: rgba(20,30,60,.035);
+  --glow-1: rgba(42,120,214,.07);
+  --glow-2: rgba(98,80,214,.05);
+  --glow-3: rgba(27,175,122,.04);
   --surface-1: #ffffff;
-  --surface-2: #f4f5f8;
-  --surface-3: #e9ebf0;
-  --border: rgba(15,20,40,.08);
+  --surface-2: #f5f6f9;
+  --surface-3: #eaecf1;
+  --border: rgba(15,20,40,.09);
   --border-strong: rgba(15,20,40,.14);
   --text-primary: #0b0d12;
   --text-secondary: #4a4c55;
@@ -37,7 +37,7 @@
   --seq-0: #eef2f8; --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5; --seq-5: #256abf; --seq-6: #104281;
   --good: #0a8a3a; --warning: #c98500; --critical: #d03b3b;
   --accent-grad: linear-gradient(110deg,#2a78d6 0%,#6250d6 50%,#1baf7a 100%);
-  --card-shadow: 0 1px 2px rgba(10,20,40,.04), 0 12px 32px -12px rgba(10,20,40,.12);
+  --card-shadow: 0 1px 2px rgba(10,20,40,.05), 0 10px 30px -14px rgba(10,20,40,.18);
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -390,7 +390,7 @@ footer { color: var(--text-muted); font-size: 12.5px; margin-top: 48px; padding-
   // ---------- theme ----------
   $("#themeBtn").addEventListener("click", () => {
     root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("mirumo-theme", root.dataset.theme); } catch (e) {}
+    try { localStorage.setItem("mirumo-theme-v2", root.dataset.theme); } catch (e) {}
     if (DATA) renderAll(false);
   });
 
